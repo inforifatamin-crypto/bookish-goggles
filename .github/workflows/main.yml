@@ -46,10 +46,17 @@ jobs:
 
       - name: Deploy Mesh Client
         run: |
-          $clientUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
+          $clientUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi"
           $localPath = "$env:TEMP\client_setup.msi"
+          
+          # Download using TLS 1.2
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
           Invoke-WebRequest -Uri $clientUrl -OutFile $localPath
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$localPath`"", "/quiet", "/norestart" -Wait
+          
+          # Run msiexec completely headless without stream hanging
+          $process = Start-Process msiexec.exe -ArgumentList "/i `"$localPath`" /qn /norestart /L*V `"$env:TEMP\tailscale_install.log`"" -PassThru -NoNewWindow
+          $process.WaitForExit()
+          
           Remove-Item $localPath -Force
 
       - name: Connect Node to Mesh
